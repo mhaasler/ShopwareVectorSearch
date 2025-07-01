@@ -29,5 +29,28 @@
             <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
             <argument type="service" id="Doctrine\DBAL\Connection"/>
         </service>
+
+        <!-- Console Commands -->
+        <service id="MHaasler\ShopwareVectorSearch\Command\IndexProductsCommand">
+            <argument type="service" id="MHaasler\ShopwareVectorSearch\Service\VectorSearchService"/>
+            <tag name="console.command"/>
+        </service>
+
+        <service id="MHaasler\ShopwareVectorSearch\Command\SearchCommand">
+            <argument type="service" id="MHaasler\ShopwareVectorSearch\Service\VectorSearchService"/>
+            <tag name="console.command"/>
+        </service>
+
+        <service id="MHaasler\ShopwareVectorSearch\Command\StatusCommand">
+            <argument type="service" id="MHaasler\ShopwareVectorSearch\Service\VectorSearchService"/>
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <tag name="console.command"/>
+        </service>
+
+        <service id="MHaasler\ShopwareVectorSearch\Command\ClearCommand">
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <tag name="console.command"/>
+        </service>
     </services>
 </container> 

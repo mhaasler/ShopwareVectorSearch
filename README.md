@@ -119,13 +119,26 @@ python openai_embedding_service.py
 ```bash
 # Alle Produkte für Vector Search indexieren
 bin/console shopware:vector-search:index
+
+# Mit benutzerdefinierten Parametern
+bin/console shopware:vector-search:index --batch-size=50 --force
 ```
 
 ### 4. Testen
 
 ```bash
+# Console Test
+bin/console shopware:vector-search:search "rotes Kleid" --limit=5 --verbose
+
+# Status prüfen
+bin/console shopware:vector-search:status
+
 # API Test
-curl -X POST http://your-shop.com/api/_action/vector-search \
+curl -X POST http://your-shop.com/api/vector-search/index \
+  -H "Authorization: Bearer {admin-token}"
+
+# Vector Search Test
+curl -X POST http://your-shop.com/api/vector-search/search \
   -H "Content-Type: application/json" \
   -d '{"query": "rotes Kleid", "limit": 5}'
 
@@ -133,6 +146,49 @@ curl -X POST http://your-shop.com/api/_action/vector-search \
 curl -X POST http://your-shop.com/store-api/vector-search \
   -H "Content-Type: application/json" \
   -d '{"query": "smartphone", "limit": 3}'
+```
+
+## 🔧 Console Commands
+
+### Produkte indexieren
+```bash
+bin/console shopware:vector-search:index [options]
+
+Options:
+  -b, --batch-size=SIZE    Number of products to process in each batch (default: 100)
+  -f, --force              Force reindexing even if embeddings already exist
+```
+
+### Suche testen
+```bash
+bin/console shopware:vector-search:search <query> [options]
+
+Arguments:
+  query                    Search query to test
+
+Options:
+  -l, --limit=LIMIT        Maximum number of results (default: 10)
+  -t, --threshold=THRESHOLD Similarity threshold 0.0-1.0 (default: 0.7)
+  -v, --verbose            Show detailed similarity scores
+```
+
+### Status anzeigen
+```bash
+bin/console shopware:vector-search:status
+
+# Zeigt an:
+# - Konfiguration
+# - Datenbankstatus
+# - Embedding Service Status
+# - Indexierungs-Fortschritt
+```
+
+### Vector-Daten löschen
+```bash
+bin/console shopware:vector-search:clear [options]
+
+Options:
+  -f, --force              Skip confirmation prompt
 ```
 
 ## 📡 API Documentation
@@ -377,25 +433,6 @@ time curl -X POST http://localhost:8001/embed \
 # MySQL Vector Query Performance
 EXPLAIN SELECT * FROM mh_product_embeddings 
 WHERE VECTOR_DISTANCE(embedding, '[1,2,3...]') < 0.3;
-```
-
-## 🚀 Migration von 6.4 zu 6.7
-
-Siehe [SHOPWARE_67_UPGRADE.md](SHOPWARE_67_UPGRADE.md) für detaillierte Upgrade-Anweisungen.
-
-**Kurz-Version:**
-```bash
-# 1. Code aktualisieren
-git pull origin main
-
-# 2. Plugin updaten
-bin/console plugin:update ShopwareVectorSearch
-
-# 3. Migrations ausführen
-bin/console database:migrate --all
-
-# 4. Embeddings neu generieren (wichtig!)
-bin/console shopware:vector-search:index --force-reindex
 ```
 
 ## 📚 Weitere Dokumentation

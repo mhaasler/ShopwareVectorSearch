@@ -142,84 +142,123 @@ class VectorSearchService
     /**
      * Index all products for vector search
      */
-    public function indexAllProducts(Context $context): array
+    public function indexAllProducts(Context $context, ?int $batchSize = null, bool $force = false): array
     {
-        $this->logger->info('Starting product indexing for vector search');
+        $batchSize = $batchSize ?? $this->getBatchSize();
+        $this->logger->info('Starting product indexing for vector search', [
+            'batch_size' => $batchSize,
+            'force' => $force
+        ]);
         
-        $criteria = new Criteria();
-        $criteria->addAssociations(['categories', 'properties.group', 'manufacturer']);
-        $criteria->setLimit($this->getBatchSize()); // Use configured batch size
+        // Get total count first
+        $totalCriteria = new Criteria();
+        $totalProducts = $this->productRepository->search($totalCriteria, $context)->getTotal();
         
-        $products = $this->productRepository->search($criteria, $context);
-        $indexed = 0;
-        $errors = 0;
+        $totalIndexed = 0;
+        $totalErrors = 0;
+        $offset = 0;
         
-        $productTexts = [];
-        $productIds = [];
-        
-        /** @var ProductEntity $product */
-        foreach ($products as $product) {
-            $text = $this->buildProductText($product);
-            $hash = hash('sha256', $text);
+        while ($offset < $totalProducts) {
+            $criteria = new Criteria();
+            $criteria->addAssociations(['categories', 'properties.group', 'manufacturer']);
+            $criteria->setLimit($batchSize);
+            $criteria->setOffset($offset);
             
-            // Check if already indexed with same content
-            if ($this->isAlreadyIndexed($product->getId(), $hash)) {
-                continue;
+            $products = $this->productRepository->search($criteria, $context);
+            
+            if ($products->count() === 0) {
+                break;
             }
             
-            $productTexts[] = $text;
-            $productIds[] = [
-                'id' => $product->getId(),
-                'versionId' => $product->getVersionId(),
-                'text' => $text,
-                'hash' => $hash
-            ];
-        }
-        
-        if (empty($productTexts)) {
-            return ['indexed' => 0, 'errors' => 0, 'message' => 'No new products to index'];
-        }
-        
-        // Get embeddings in batch
-        try {
-            $embeddings = $this->getEmbeddingsBatch($productTexts);
+            $batchIndexed = 0;
+            $batchErrors = 0;
             
-            // Store embeddings
-            foreach ($productIds as $index => $productData) {
+            $productTexts = [];
+            $productIds = [];
+            
+            /** @var ProductEntity $product */
+            foreach ($products as $product) {
+                $text = $this->buildProductText($product);
+                $hash = hash('sha256', $text);
+                
+                // Check if already indexed with same content (skip if not force mode)
+                if (!$force && $this->isAlreadyIndexed($product->getId(), $hash)) {
+                    continue;
+                }
+                
+                $productTexts[] = $text;
+                $productIds[] = [
+                    'id' => $product->getId(),
+                    'versionId' => $product->getVersionId(),
+                    'text' => $text,
+                    'hash' => $hash
+                ];
+            }
+            
+            if (!empty($productTexts)) {
+                // Get embeddings in batch
                 try {
-                    $this->storeEmbedding(
-                        $productData['id'],
-                        $productData['versionId'],
-                        $embeddings[$index],
-                        $productData['text'],
-                        $productData['hash']
-                    );
-                    $indexed++;
+                    $embeddings = $this->getEmbeddingsBatch($productTexts);
+                    
+                    // Store embeddings
+                    foreach ($productIds as $index => $productData) {
+                        try {
+                            if ($force) {
+                                // Delete existing embedding first
+                                $this->connection->executeStatement(
+                                    'DELETE FROM product_embeddings WHERE product_id = ? AND product_version_id = ?',
+                                    [$productData['id'], $productData['versionId']]
+                                );
+                            }
+                            
+                            $this->storeEmbedding(
+                                $productData['id'],
+                                $productData['versionId'],
+                                $embeddings[$index],
+                                $productData['text'],
+                                $productData['hash']
+                            );
+                            $batchIndexed++;
+                        } catch (\Exception $e) {
+                            $this->logger->error('Failed to store embedding', [
+                                'product_id' => $productData['id'],
+                                'error' => $e->getMessage()
+                            ]);
+                            $batchErrors++;
+                        }
+                    }
+                    
                 } catch (\Exception $e) {
-                    $this->logger->error('Failed to store embedding', [
-                        'product_id' => $productData['id'],
-                        'error' => $e->getMessage()
-                    ]);
-                    $errors++;
+                    $this->logger->error('Batch embedding failed', ['error' => $e->getMessage()]);
+                    $batchErrors += count($productIds);
                 }
             }
             
-        } catch (\Exception $e) {
-            $this->logger->error('Batch embedding failed', ['error' => $e->getMessage()]);
-            return ['indexed' => 0, 'errors' => count($productIds), 'message' => $e->getMessage()];
+            $totalIndexed += $batchIndexed;
+            $totalErrors += $batchErrors;
+            $offset += $batchSize;
+            
+            $this->logger->info('Processed batch', [
+                'offset' => $offset,
+                'batch_indexed' => $batchIndexed,
+                'batch_errors' => $batchErrors,
+                'total_indexed' => $totalIndexed,
+                'total_errors' => $totalErrors
+            ]);
         }
         
         $this->logger->info('Product indexing completed', [
-            'indexed' => $indexed,
-            'errors' => $errors,
-            'total_products' => $products->getTotal()
+            'indexed' => $totalIndexed,
+            'errors' => $totalErrors,
+            'total_products' => $totalProducts,
+            'force' => $force
         ]);
         
         return [
-            'indexed' => $indexed,
-            'errors' => $errors,
-            'total_products' => $products->getTotal(),
-            'message' => "Successfully indexed {$indexed} products"
+            'indexed' => $totalIndexed,
+            'errors' => $totalErrors,
+            'total_products' => $totalProducts,
+            'message' => "Successfully indexed {$totalIndexed} products" . ($force ? ' (force mode)' : '')
         ];
     }
 
