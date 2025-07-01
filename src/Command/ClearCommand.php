@@ -42,7 +42,7 @@ class ClearCommand extends Command
 
         try {
             // Get current count
-            $count = $this->connection->fetchOne('SELECT COUNT(*) FROM product_embeddings');
+            $count = $this->connection->fetchOne('SELECT COUNT(*) FROM mh_product_embeddings');
             
             if ($count == 0) {
                 $io->success('No vector data found to clear.');
@@ -58,7 +58,7 @@ class ClearCommand extends Command
 
             $io->text('Clearing vector data...');
 
-            $deletedRows = $this->connection->executeStatement('DELETE FROM product_embeddings');
+            $deletedRows = $this->connection->executeStatement('DELETE FROM mh_product_embeddings');
 
             $io->success(sprintf('Successfully deleted %d product embeddings.', $deletedRows));
             $io->note('Run "shopware:vector-search:index" to rebuild the vector index.');

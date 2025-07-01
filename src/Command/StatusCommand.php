@@ -77,17 +77,17 @@ class StatusCommand extends Command
         try {
             // Check if table exists
             $tableExists = $this->connection->fetchOne(
-                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'product_embeddings'"
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'mh_product_embeddings'"
             );
 
             if (!$tableExists) {
-                $io->error('Table "product_embeddings" does not exist. Run migrations first.');
+                $io->error('Table "mh_product_embeddings" does not exist. Run migrations first.');
                 return;
             }
 
             // Get statistics
             $totalProducts = $this->connection->fetchOne('SELECT COUNT(*) FROM product WHERE version_id = UNHEX(?)', ['0159E78AE2A2475E8F75C64B0D914516']);
-            $indexedProducts = $this->connection->fetchOne('SELECT COUNT(*) FROM product_embeddings');
+            $indexedProducts = $this->connection->fetchOne('SELECT COUNT(*) FROM mh_product_embeddings');
             $indexingProgress = $totalProducts > 0 ? round(($indexedProducts / $totalProducts) * 100, 2) : 0;
 
             $stats = [

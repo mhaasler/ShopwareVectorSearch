@@ -206,7 +206,7 @@ class VectorSearchService
                             if ($force) {
                                 // Delete existing embedding first
                                 $this->connection->executeStatement(
-                                    'DELETE FROM product_embeddings WHERE product_id = ? AND product_version_id = ?',
+                                    'DELETE FROM mh_product_embeddings WHERE product_id = ? AND product_version_id = ?',
                                     [$productData['id'], $productData['versionId']]
                                 );
                             }
