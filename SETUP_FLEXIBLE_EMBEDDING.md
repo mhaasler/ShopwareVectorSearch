@@ -105,7 +105,7 @@ bin/console shopware:vector-search:index
 
 **Vector Search:**
 ```bash
-POST /api/_action/vector-search
+POST /api/vector-search/search
 {
     "query": "rotes Kleid",
     "limit": 10,

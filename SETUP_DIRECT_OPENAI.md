@@ -55,7 +55,7 @@ bin/console shopware:vector-search:index
 
 **Vector Search:**
 ```bash
-POST /api/_action/vector-search
+POST /api/vector-search/search
 {
     "query": "rotes Kleid",
     "limit": 10,
@@ -110,9 +110,10 @@ POST /store-api/vector-search
 - Warte und versuche erneut
 - Prüfe dein OpenAI Limit
 
-**3. "MySQL Vector support not available"**
-- MySQL Version ≥ 8.0.28 erforderlich
-- Fallback auf JSON-Speicherung wird verwendet
+**3. "Using JSON fallback search"**
+- MySQL Version < 8.0.28 erkannt
+- Automatischer Fallback auf JSON-Speicherung (funktioniert vollständig!)
+- Prüfe Details mit: `bin/console shopware:vector-search:debug`
 
 ### Logs prüfen:
 ```bash

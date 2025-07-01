@@ -25,16 +25,38 @@
 - **Cross-Selling**: Intelligente Produktverknüpfungen
 - **Mehrsprachige Suche**: Funktioniert auch bei verschiedenen Sprachen
 
+## ⚡ Performance & Kompatibilität
+
+Das Plugin **funktioniert mit allen MySQL-Versionen** und wählt automatisch den optimalen Modus:
+
+### 🚀 Native VECTOR Mode (MySQL 8.0.28+)
+- **Performance**: Optimal (Hardware-beschleunigt)
+- **Speicher**: Kompakt (native VECTOR Datentyp)
+- **Suchzeit**: < 50ms bei 10,000+ Produkten
+
+### ⚡ JSON Fallback Mode (MySQL < 8.0.28)  
+- **Performance**: Gut (Software Cosine-Similarity)
+- **Speicher**: Etwas mehr (JSON-Speicherung)
+- **Suchzeit**: < 200ms bei 10,000+ Produkten
+
+**💡 Tipp**: Nutze `bin/console shopware:vector-search:debug` um herauszufinden, welcher Modus verwendet wird.
+
 ## 📋 Requirements
 
 ### System Requirements
 - **PHP**: 8.1 oder höher
 - **Shopware**: 6.6.x oder 6.7.x
-- **MySQL**: 8.0.28+ (empfohlen für Vector Support)
+- **MySQL**: 5.7+ (funktioniert mit allen Versionen)
 - **Memory**: Mindestens 512MB für PHP
 
+### MySQL Version Support
+| Version | Unterstützung | Performance | Bemerkung |
+|---------|--------------|-------------|-----------|
+| **MySQL 8.0.28+** | ✅ Vollständig | 🚀 **Optimal** | Native VECTOR Datentypen |
+| **MySQL 8.0.0-8.0.27** | ✅ Vollständig | ⚡ Gut | JSON-Fallback mit Cosine-Similarity |
+| **MySQL 5.7+** | ✅ Vollständig | ⚡ Gut | JSON-Fallback mit Cosine-Similarity |
+
 ### Optional für bessere Performance
-- **MySQL Vector Support**: MySQL 8.0.28+ für native VECTOR Datentypen
 - **Composer**: 2.x für optimierte Autoloading
 
 ## 🛠️ Installation
@@ -133,6 +155,9 @@ bin/console shopware:vector-search:search "rotes Kleid" --limit=5 --detailed
 # Status prüfen
 bin/console shopware:vector-search:status
 
+# MySQL Debug (empfohlen vor erstem Einsatz)
+bin/console shopware:vector-search:debug
+
 # API Test
 curl -X POST http://your-shop.com/api/vector-search/index \
   -H "Authorization: Bearer {admin-token}"
@@ -191,13 +216,24 @@ Options:
   -f, --force              Skip confirmation prompt
 ```
 
+### MySQL Debug & Diagnostik
+```bash
+bin/console shopware:vector-search:debug
+
+# Zeigt an:
+# - MySQL Version und VECTOR-Support
+# - Tabellen-Struktur (VECTOR vs JSON)
+# - Performance-Modus (Native vs Fallback)
+# - Grund für Fallback-Verwendung
+```
+
 ## 📡 API Documentation
 
 ### Admin API Endpoints
 
 #### Produkte indexieren
 ```http
-POST /api/_action/vector-search/index
+POST /api/vector-search/index
 Authorization: Bearer {admin-token}
 
 Response:
@@ -214,7 +250,7 @@ Response:
 
 #### Vector Search
 ```http
-POST /api/_action/vector-search/search
+POST /api/vector-search/search
 Content-Type: application/json
 Authorization: Bearer {admin-token}
 
@@ -246,7 +282,7 @@ Response:
 
 #### Status prüfen
 ```http
-GET /api/_action/vector-search/status
+GET /api/vector-search/status
 Authorization: Bearer {admin-token}
 
 Response:
