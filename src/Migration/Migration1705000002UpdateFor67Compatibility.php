@@ -15,7 +15,7 @@ class Migration1705000002UpdateFor67Compatibility extends MigrationStep
     public function update(Connection $connection): void
     {
         // Check if table exists
-        $tableExists = $connection->getSchemaManager()->tablesExist(['mh_product_embeddings']);
+        $tableExists = $connection->createSchemaManager()->tablesExist(['mh_product_embeddings']);
         
         if (!$tableExists) {
             // Table doesn't exist yet, skip this migration
