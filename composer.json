@@ -1,0 +1,34 @@
+{
+    "name": "mhaasler/shopware-vector-search",
+    "description": "AI-powered vector search for Shopware products using MySQL 8.0+ vector support",
+    "type": "shopware-platform-plugin",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "M. Haasler",
+            "email": "info@mhaasler.de"
+        }
+    ],
+    "require": {
+        "shopware/core": "~6.6.0|~6.7.0",
+        "php": ">=8.1",
+        "openai-php/client": "^0.8.0",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "extra": {
+        "shopware-plugin-class": "MHaasler\\ShopwareVectorSearch\\ShopwareVectorSearch",
+        "label": {
+            "de-DE": "Vector Search",
+            "en-GB": "Vector Search"
+        },
+        "description": {
+            "de-DE": "KI-gestützte Vektorsuche für Shopware-Produkte",
+            "en-GB": "AI-powered vector search for Shopware products"
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "MHaasler\\ShopwareVectorSearch\\": "src/"
+        }
+    }
+} 

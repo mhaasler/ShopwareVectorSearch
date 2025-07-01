@@ -1,0 +1,33 @@
+<?xml version="1.0" ?>
+<container xmlns="http://symfony.com/schema/dic/services"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <services>
+        <!-- HTTP Client für Vector Search (für Embedding Service Mode) -->
+        <service id="MHaasler\ShopwareVectorSearch\HttpClient" class="GuzzleHttp\Client">
+        </service>
+
+        <!-- Vector Search Service -->
+        <service id="MHaasler\ShopwareVectorSearch\Service\VectorSearchService" public="true">
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <argument type="service" id="product.repository"/>
+            <argument type="service" id="MHaasler\ShopwareVectorSearch\HttpClient"/>
+            <argument type="service" id="logger"/>
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+        </service>
+
+        <!-- Vector Search Controller (API) -->
+        <service id="MHaasler\ShopwareVectorSearch\Controller\VectorSearchController" public="true">
+            <argument type="service" id="MHaasler\ShopwareVectorSearch\Service\VectorSearchService"/>
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+        </service>
+
+        <!-- Public Vector Search Controller (Storefront) -->
+        <service id="MHaasler\ShopwareVectorSearch\Controller\PublicVectorSearchController" public="true">
+            <argument type="service" id="MHaasler\ShopwareVectorSearch\Service\VectorSearchService"/>
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+        </service>
+    </services>
+</container> 

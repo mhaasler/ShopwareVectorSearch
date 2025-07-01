@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/platform/trunk/src/Core/System/SystemConfig/Schema/config.xsd">
+
+    <card>
+        <title>Vector Search Configuration</title>
+        <title lang="de-DE">Vector Search Konfiguration</title>
+
+        <input-field>
+            <name>embeddingMode</name>
+            <type>single-select</type>
+            <label>Embedding Mode</label>
+            <label lang="de-DE">Embedding Modus</label>
+            <helpText>Choose how to generate embeddings: via external service or directly from OpenAI</helpText>
+            <helpText lang="de-DE">Wähle, wie Embeddings generiert werden: über externen Service oder direkt von OpenAI</helpText>
+            <options>
+                <option>
+                    <id>embedding_service</id>
+                    <name>External Embedding Service</name>
+                    <name lang="de-DE">Externer Embedding Service</name>
+                </option>
+                <option>
+                    <id>direct_openai</id>
+                    <name>Direct OpenAI API</name>
+                    <name lang="de-DE">Direkte OpenAI API</name>
+                </option>
+            </options>
+            <defaultValue>embedding_service</defaultValue>
+        </input-field>
+
+        <input-field>
+            <name>embeddingServiceUrl</name>
+            <label>Embedding Service URL</label>
+            <label lang="de-DE">Embedding Service URL</label>
+            <helpText>URL of the external embedding service (e.g., https://your-ngrok-url.ngrok.io or http://localhost:8001)</helpText>
+            <helpText lang="de-DE">URL des externen Embedding Services (z.B. https://your-ngrok-url.ngrok.io oder http://localhost:8001)</helpText>
+            <placeholder>https://abc123.ngrok.io</placeholder>
+            <defaultValue>http://localhost:8001</defaultValue>
+        </input-field>
+
+        <input-field>
+            <name>openAiApiKey</name>
+            <type>password</type>
+            <label>OpenAI API Key</label>
+            <label lang="de-DE">OpenAI API Schlüssel</label>
+            <helpText>Your OpenAI API key for direct embedding generation (starts with sk-...)</helpText>
+            <helpText lang="de-DE">Ihr OpenAI API Schlüssel für direkte Embedding-Generierung (beginnt mit sk-...)</helpText>
+            <placeholder>sk-...</placeholder>
+        </input-field>
+
+        <input-field>
+            <name>enableVectorSearch</name>
+            <type>bool</type>
+            <label>Enable Vector Search</label>
+            <label lang="de-DE">Vector Search aktivieren</label>
+            <helpText>Enable or disable the vector search functionality</helpText>
+            <helpText lang="de-DE">Vector Search Funktionalität aktivieren oder deaktivieren</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field>
+            <name>batchSize</name>
+            <type>int</type>
+            <label>Batch Size</label>
+            <label lang="de-DE">Batch-Größe</label>
+            <helpText>Number of products to process in one batch</helpText>
+            <helpText lang="de-DE">Anzahl der Produkte, die in einem Batch verarbeitet werden</helpText>
+            <defaultValue>100</defaultValue>
+            <min>1</min>
+            <max>500</max>
+        </input-field>
+
+        <input-field>
+            <name>defaultSimilarityThreshold</name>
+            <type>float</type>
+            <label>Default Similarity Threshold</label>
+            <label lang="de-DE">Standard-Ähnlichkeitsschwellwert</label>
+            <helpText>Minimum similarity score for search results (0.0 - 1.0)</helpText>
+            <helpText lang="de-DE">Mindest-Ähnlichkeitsscore für Suchergebnisse (0.0 - 1.0)</helpText>
+            <defaultValue>0.7</defaultValue>
+            <min>0.0</min>
+            <max>1.0</max>
+            <step>0.1</step>
+        </input-field>
+
+        <input-field>
+            <name>maxSearchResults</name>
+            <type>int</type>
+            <label>Max Search Results</label>
+            <label lang="de-DE">Maximale Suchergebnisse</label>
+            <helpText>Maximum number of products to return in search results</helpText>
+            <helpText lang="de-DE">Maximale Anzahl der Produkte in Suchergebnissen</helpText>
+            <defaultValue>20</defaultValue>
+            <min>1</min>
+            <max>100</max>
+        </input-field>
+
+        <input-field>
+            <name>embeddingTimeout</name>
+            <type>int</type>
+            <label>Request Timeout (seconds)</label>
+            <label lang="de-DE">Request Timeout (Sekunden)</label>
+            <helpText>Timeout for embedding requests in seconds</helpText>
+            <helpText lang="de-DE">Timeout für Embedding-Anfragen in Sekunden</helpText>
+            <defaultValue>30</defaultValue>
+        </input-field>
+    </card>
+
+    <card>
+        <title>Advanced Settings</title>
+        <title lang="de-DE">Erweiterte Einstellungen</title>
+
+        <input-field>
+            <name>enableLogging</name>
+            <type>bool</type>
+            <label>Enable Debug Logging</label>
+            <label lang="de-DE">Debug-Logging aktivieren</label>
+            <helpText>Enable detailed logging for debugging purposes</helpText>
+            <helpText lang="de-DE">Detailliertes Logging für Debugging-Zwecke aktivieren</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field>
+            <name>autoReindex</name>
+            <type>bool</type>
+            <label>Auto-Reindex on Product Changes</label>
+            <label lang="de-DE">Auto-Reindexierung bei Produktänderungen</label>
+            <helpText>Automatically reindex products when they are modified</helpText>
+            <helpText lang="de-DE">Produkte automatisch reindexieren, wenn sie geändert werden</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+    </card>
+</config> 
