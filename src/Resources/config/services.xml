@@ -52,5 +52,10 @@
             <argument type="service" id="Doctrine\DBAL\Connection"/>
             <tag name="console.command"/>
         </service>
+
+        <service id="MHaasler\ShopwareVectorSearch\Command\DebugCommand">
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <tag name="console.command"/>
+        </service>
     </services>
 </container> 

@@ -663,10 +663,82 @@ class VectorSearchService
      */
     private function searchWithJsonFallback(array $queryEmbedding, int $limit, float $threshold): array
     {
-        // This is more complex and slower - would need custom similarity calculation
-        // For now, return empty results
-        $this->logger->warning('JSON fallback search not yet implemented');
-        return [];
+        $this->logger->info('Using JSON fallback search for older MySQL');
+        
+        // Fetch all embeddings from database
+        $sql = '
+            SELECT 
+                HEX(product_id) as product_id,
+                content_text,
+                embedding
+            FROM mh_product_embeddings
+        ';
+        
+        $allEmbeddings = $this->connection->fetchAllAssociative($sql);
+        
+        if (empty($allEmbeddings)) {
+            $this->logger->warning('No embeddings found in database');
+            return [];
+        }
+        
+        $similarities = [];
+        
+        foreach ($allEmbeddings as $row) {
+            $storedEmbedding = json_decode($row['embedding'], true);
+            
+            if (!is_array($storedEmbedding)) {
+                continue; // Skip invalid embeddings
+            }
+            
+            // Calculate cosine similarity
+            $similarity = $this->calculateCosineSimilarity($queryEmbedding, $storedEmbedding);
+            
+            if ($similarity >= $threshold) {
+                $similarities[] = [
+                    'product_id' => $row['product_id'],
+                    'similarity' => $similarity,
+                    'distance' => 1 - $similarity,
+                    'content' => $row['content_text']
+                ];
+            }
+        }
+        
+        // Sort by similarity (highest first)
+        usort($similarities, function($a, $b) {
+            return $b['similarity'] <=> $a['similarity'];
+        });
+        
+        // Return top results
+        return array_slice($similarities, 0, $limit);
+    }
+
+    /**
+     * Calculate cosine similarity between two vectors
+     */
+    private function calculateCosineSimilarity(array $vectorA, array $vectorB): float
+    {
+        if (count($vectorA) !== count($vectorB)) {
+            return 0.0;
+        }
+        
+        $dotProduct = 0.0;
+        $magnitudeA = 0.0;
+        $magnitudeB = 0.0;
+        
+        for ($i = 0; $i < count($vectorA); $i++) {
+            $dotProduct += $vectorA[$i] * $vectorB[$i];
+            $magnitudeA += $vectorA[$i] * $vectorA[$i];
+            $magnitudeB += $vectorB[$i] * $vectorB[$i];
+        }
+        
+        $magnitudeA = sqrt($magnitudeA);
+        $magnitudeB = sqrt($magnitudeB);
+        
+        if ($magnitudeA == 0.0 || $magnitudeB == 0.0) {
+            return 0.0;
+        }
+        
+        return $dotProduct / ($magnitudeA * $magnitudeB);
     }
 
     /**
