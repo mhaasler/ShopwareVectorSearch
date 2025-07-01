@@ -46,8 +46,8 @@ class SearchCommand extends Command
                 0.7
             )
             ->addOption(
-                'verbose',
-                'v',
+                'detailed',
+                'd',
                 InputOption::VALUE_NONE,
                 'Show detailed similarity scores'
             );
@@ -60,7 +60,7 @@ class SearchCommand extends Command
         $query = $input->getArgument('query');
         $limit = (int) $input->getOption('limit');
         $threshold = (float) $input->getOption('threshold');
-        $verbose = $input->getOption('verbose');
+        $detailed = $input->getOption('detailed');
 
         $io->title('Shopware Vector Search - Search Test');
         $io->text(sprintf('Query: "%s"', $query));
@@ -84,7 +84,7 @@ class SearchCommand extends Command
                     substr($result['content'], 0, 60) . '...',
                 ];
 
-                if ($verbose) {
+                if ($detailed) {
                     $row[] = sprintf('%.3f', $result['similarity']);
                     $row[] = sprintf('%.3f', $result['distance']);
                 }
@@ -93,14 +93,14 @@ class SearchCommand extends Command
             }
 
             $headers = ['#', 'Product ID', 'Content'];
-            if ($verbose) {
+            if ($detailed) {
                 $headers[] = 'Similarity';
                 $headers[] = 'Distance';
             }
 
             $io->table($headers, $tableRows);
 
-            if ($verbose) {
+            if ($detailed) {
                 $io->text('Similarity: Higher is better (0.0 - 1.0)');
                 $io->text('Distance: Lower is better (0.0 - 2.0)');
             }

@@ -128,7 +128,7 @@ bin/console shopware:vector-search:index --batch-size=50 --force
 
 ```bash
 # Console Test
-bin/console shopware:vector-search:search "rotes Kleid" --limit=5 --verbose
+bin/console shopware:vector-search:search "rotes Kleid" --limit=5 --detailed
 
 # Status prüfen
 bin/console shopware:vector-search:status
@@ -169,7 +169,7 @@ Arguments:
 Options:
   -l, --limit=LIMIT        Maximum number of results (default: 10)
   -t, --threshold=THRESHOLD Similarity threshold 0.0-1.0 (default: 0.7)
-  -v, --verbose            Show detailed similarity scores
+  -d, --detailed           Show detailed similarity scores
 ```
 
 ### Status anzeigen
