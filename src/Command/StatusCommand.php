@@ -4,6 +4,7 @@ namespace MHaasler\ShopwareVectorSearch\Command;
 
 use MHaasler\ShopwareVectorSearch\Service\VectorSearchService;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
+use Shopware\Core\Defaults;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -86,7 +87,12 @@ class StatusCommand extends Command
             }
 
             // Get statistics
-            $totalProducts = $this->connection->fetchOne('SELECT COUNT(*) FROM product WHERE version_id = UNHEX(?)', ['0159E78AE2A2475E8F75C64B0D914516']);
+            // Count all active products using Shopware Defaults for live version
+            $totalProducts = $this->connection->fetchOne(
+                'SELECT COUNT(*) FROM product WHERE active = 1 AND version_id = ?',
+                [hex2bin(Defaults::LIVE_VERSION)]
+            );
+            
             $indexedProducts = $this->connection->fetchOne('SELECT COUNT(*) FROM mh_product_embeddings');
             $indexingProgress = $totalProducts > 0 ? round(($indexedProducts / $totalProducts) * 100, 2) : 0;
 
