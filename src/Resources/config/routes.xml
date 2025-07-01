@@ -4,6 +4,6 @@
         xsi:schemaLocation="http://symfony.com/schema/routing
         https://symfony.com/schema/routing/routing-1.0.xsd">
 
-    <import resource="../../Controller/VectorSearchController.php" type="annotation" />
-    <import resource="../../Controller/PublicVectorSearchController.php" type="annotation" />
+    <import resource="../../Controller/VectorSearchController.php" type="attribute" />
+    <import resource="../../Controller/PublicVectorSearchController.php" type="attribute" />
 </routes> 
