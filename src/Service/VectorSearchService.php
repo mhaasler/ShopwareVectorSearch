@@ -306,36 +306,53 @@ class VectorSearchService
         
         // Basic product info
         if ($product->getName()) {
-            $parts[] = $product->getName();
+            $parts[] = trim($product->getName());
         }
         
         if ($product->getDescription()) {
-            $parts[] = strip_tags($product->getDescription());
+            $description = trim(strip_tags($product->getDescription()));
+            if (!empty($description)) {
+                $parts[] = $description;
+            }
         }
         
         // Manufacturer
-        if ($product->getManufacturer()) {
-            $parts[] = $product->getManufacturer()->getName();
+        if ($product->getManufacturer() && $product->getManufacturer()->getName()) {
+            $parts[] = trim($product->getManufacturer()->getName());
         }
         
         // Categories
         if ($product->getCategories()) {
             foreach ($product->getCategories() as $category) {
-                $parts[] = $category->getName();
+                if ($category->getName()) {
+                    $parts[] = trim($category->getName());
+                }
             }
         }
         
         // Properties
         if ($product->getProperties()) {
             foreach ($product->getProperties() as $property) {
-                $parts[] = $property->getName();
-                if ($property->getGroup()) {
-                    $parts[] = $property->getGroup()->getName();
+                if ($property->getName()) {
+                    $parts[] = trim($property->getName());
+                }
+                if ($property->getGroup() && $property->getGroup()->getName()) {
+                    $parts[] = trim($property->getGroup()->getName());
                 }
             }
         }
         
-        return implode(' ', array_filter($parts));
+        // Filter out empty parts and join
+        $text = implode(' ', array_filter($parts, function($part) {
+            return !empty(trim($part));
+        }));
+        
+        // Fallback to product ID if no meaningful text found
+        if (empty($text)) {
+            $text = 'Product ID: ' . $product->getId();
+        }
+        
+        return $text;
     }
 
     /**
@@ -379,9 +396,15 @@ class VectorSearchService
     {
         $client = $this->getOpenAiClient();
 
+        $cleanText = $this->cleanTextForEmbedding($text);
+        
+        if (empty($cleanText)) {
+            throw new \Exception('Invalid or empty text provided for embedding');
+        }
+
         $response = $client->embeddings()->create([
             'model' => self::OPENAI_MODEL,
-            'input' => $text,
+            'input' => $cleanText,
         ]);
         
         return $response->embeddings[0]->embedding;
@@ -454,18 +477,91 @@ class VectorSearchService
     {
         $client = $this->getOpenAiClient();
 
-        $response = $client->embeddings()->create([
-            'model' => self::OPENAI_MODEL,
-            'input' => $texts,
-        ]);
+        // Clean and validate texts for OpenAI API
+        $cleanTexts = [];
+        $originalIndexes = [];
         
-        // Extract embeddings from response
-        $embeddings = [];
-        foreach ($response->embeddings as $embedding) {
-            $embeddings[] = $embedding->embedding;
+        foreach ($texts as $index => $text) {
+            $cleanText = $this->cleanTextForEmbedding($text);
+            
+            if (!empty($cleanText)) {
+                $cleanTexts[] = $cleanText;
+                $originalIndexes[] = $index;
+            }
         }
         
-        return $embeddings;
+        if (empty($cleanTexts)) {
+            throw new \Exception('No valid texts provided for embedding');
+        }
+
+        // OpenAI has a limit of ~8192 tokens per input, split if too large
+        $batches = $this->splitTextsIntoApiCompatibleBatches($cleanTexts);
+        $allEmbeddings = [];
+        
+        foreach ($batches as $batch) {
+            $response = $client->embeddings()->create([
+                'model' => self::OPENAI_MODEL,
+                'input' => $batch,
+            ]);
+            
+            // Extract embeddings from response
+            foreach ($response->embeddings as $embedding) {
+                $allEmbeddings[] = $embedding->embedding;
+            }
+        }
+        
+        // Restore original order and fill missing embeddings with zeros
+        $finalEmbeddings = [];
+        $embeddingIndex = 0;
+        
+        for ($i = 0; $i < count($texts); $i++) {
+            if (in_array($i, $originalIndexes)) {
+                $finalEmbeddings[] = $allEmbeddings[$embeddingIndex++];
+            } else {
+                // Create a zero vector for invalid texts
+                $finalEmbeddings[] = array_fill(0, self::EMBEDDING_DIMENSIONS, 0.0);
+            }
+        }
+        
+        return $finalEmbeddings;
+    }
+
+    /**
+     * Clean text for embedding API
+     */
+    private function cleanTextForEmbedding(string $text): string
+    {
+        // Remove extra whitespace and trim
+        $text = trim(preg_replace('/\s+/', ' ', $text));
+        
+        // Remove control characters and invalid UTF-8
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text);
+        
+        // Ensure valid UTF-8
+        $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        
+        // Limit length to avoid token limits (roughly 6000 characters = ~1500 tokens)
+        if (strlen($text) > 6000) {
+            $text = substr($text, 0, 6000);
+        }
+        
+        return $text;
+    }
+
+    /**
+     * Split texts into API-compatible batches
+     */
+    private function splitTextsIntoApiCompatibleBatches(array $texts): array
+    {
+        // OpenAI allows up to 2048 inputs per request, but we use smaller batches for safety
+        $maxBatchSize = 100;
+        $batches = [];
+        
+        for ($i = 0; $i < count($texts); $i += $maxBatchSize) {
+            $batches[] = array_slice($texts, $i, $maxBatchSize);
+        }
+        
+        return $batches;
     }
 
     /**
