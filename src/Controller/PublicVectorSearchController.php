@@ -23,14 +23,6 @@ class PublicVectorSearchController extends StorefrontController
     #[Route(path: '/vector-search/search', name: 'frontend.vector_search.search', methods: ['POST'], defaults: ['XmlHttpRequest' => true, 'csrf_protected' => false])]
     public function search(Request $request): JsonResponse
     {
-        // Authentifizierung prüfen
-        $accessKey = $request->headers->get('sw-access-key');
-        if (!$this->isValidAccessKey($accessKey)) {
-            return new JsonResponse([
-                'success' => false,
-                'error' => 'Invalid or missing sw-access-key'
-            ], 401);
-        }
 
         try {
             $data = json_decode($request->getContent(), true);
@@ -96,23 +88,7 @@ class PublicVectorSearchController extends StorefrontController
         }
     }
 
-    private function isValidAccessKey(?string $accessKey): bool
-    {
-        if (empty($accessKey)) {
-            return false;
-        }
 
-        try {
-            // Prüfe gegen konfigurierte Sales Channel Access Keys
-            $sql = 'SELECT COUNT(*) FROM sales_channel WHERE access_key = :accessKey AND active = 1';
-            $count = $this->connection->fetchOne($sql, ['accessKey' => $accessKey]);
-            
-            return $count > 0;
-        } catch (\Exception $e) {
-            // Fallback: Prüfe gegen statischen Key (für Tests)
-            return $accessKey === 'SWSCMEZTEUJYNMY0WDI2TXC4YQ';
-        }
-    }
 
     private function checkEmbeddingService(): array
     {
