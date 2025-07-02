@@ -229,3 +229,415 @@ Bei Problemen:
 2. Logs prüfen (`var/log/dev.log`)
 3. Service-spezifische Troubleshooting-Schritte befolgen
 4. GitHub Issues erstellen mit Logs und Konfiguration 
+
+# Setup: Flexible Embedding Service
+
+Diese Anleitung zeigt, wie du das Plugin mit einem eigenen Embedding Service verwendest.
+
+## Voraussetzungen
+
+- Embedding Service (Python Flask App)
+- MySQL 5.7+ (alle Versionen unterstützt)
+- Shopware 6.5+
+
+## 1. Embedding Service Setup
+
+### Python Environment erstellen
+```bash
+python -m venv embedding-env
+source embedding-env/bin/activate  # Linux/Mac
+# oder: embedding-env\Scripts\activate  # Windows
+
+pip install flask sentence-transformers torch
+```
+
+### Embedding Service (app.py)
+```python
+from flask import Flask, request, jsonify
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+app = Flask(__name__)
+
+# Load model (you can use different models)
+model = SentenceTransformer('all-MiniLM-L6-v2')  # 384 dimensions
+# model = SentenceTransformer('all-mpnet-base-v2')  # 768 dimensions
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({
+        'status': 'healthy',
+        'model': model.get_sentence_embedding_dimension(),
+        'dimensions': model.get_sentence_embedding_dimension(),
+        'ready': True
+    })
+
+@app.route('/embed', methods=['POST'])
+def embed():
+    data = request.get_json()
+    
+    if not data or 'text' not in data:
+        return jsonify({'error': 'Missing text parameter'}), 400
+    
+    text = data['text']
+    
+    # Generate embedding
+    embedding = model.encode(text)
+    
+    return jsonify({
+        'embedding': embedding.tolist(),
+        'model': str(model),
+        'dimensions': len(embedding)
+    })
+
+@app.route('/embed/batch', methods=['POST'])
+def embed_batch():
+    data = request.get_json()
+    
+    if not data or 'texts' not in data:
+        return jsonify({'error': 'Missing texts parameter'}), 400
+    
+    texts = data['texts']
+    
+    if not isinstance(texts, list):
+        return jsonify({'error': 'Texts must be a list'}), 400
+    
+    # Generate embeddings for all texts
+    embeddings = model.encode(texts)
+    
+    return jsonify({
+        'embeddings': [emb.tolist() for emb in embeddings],
+        'model': str(model),
+        'dimensions': len(embeddings[0]) if len(embeddings) > 0 else 0,
+        'count': len(embeddings)
+    })
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8001, debug=False)
+```
+
+### Service starten
+```bash
+python app.py
+# Service läuft auf http://localhost:8001
+```
+
+## 2. Plugin Konfiguration
+
+### System Config
+```php
+// config/packages/shopware.yaml
+'ShopwareVectorSearch' => [
+    'config' => [
+        'embeddingMode' => 'embedding_service',
+        'embeddingServiceUrl' => 'http://localhost:8001',
+        'batchSize' => 100,
+        'defaultSimilarityThreshold' => 0.7,
+        'maxSearchResults' => 20,
+        'embeddingTimeout' => 30
+    ]
+]
+```
+
+### Über Database
+```sql
+INSERT INTO system_config (id, configuration_key, configuration_value, sales_channel_id, created_at) 
+VALUES (
+    UNHEX(REPLACE(UUID(), '-', '')),
+    'ShopwareVectorSearch.config.embeddingMode',
+    '{"_value": "embedding_service"}',
+    NULL,
+    NOW()
+);
+
+INSERT INTO system_config (id, configuration_key, configuration_value, sales_channel_id, created_at) 
+VALUES (
+    UNHEX(REPLACE(UUID(), '-', '')),
+    'ShopwareVectorSearch.config.embeddingServiceUrl',
+    '{"_value": "http://localhost:8001"}',
+    NULL,
+    NOW()
+);
+```
+
+## 3. Service-Verbindung testen
+
+```bash
+# Health Check
+curl http://localhost:8001/health
+
+# Einzelnes Embedding
+curl -X POST http://localhost:8001/embed \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Gaming Laptop"}'
+
+# Batch Embedding
+curl -X POST http://localhost:8001/embed/batch \
+  -H "Content-Type: application/json" \
+  -d '{"texts": ["Gaming Laptop", "Office Chair", "Wireless Mouse"]}'
+```
+
+## 4. Produkte indexieren
+
+```bash
+# Alle Produkte indexieren
+bin/console shopware:vector-search:index
+
+# Status prüfen
+bin/console shopware:vector-search:status
+```
+
+## 5. Suche testen
+
+### Via Console Command
+```bash
+bin/console shopware:vector-search:search "Gaming Laptop" --limit=5 --detailed
+```
+
+### Via API
+```bash
+# Sales Channel Access Key aus Admin holen
+# Admin → Sales Channels → [Channel] → API access → Access Key
+
+curl -X POST "https://your-shop.com/vector-search/search" \
+  -H "sw-access-key: SWSCVJY3RJFENTUZZDMZNWFWMA" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Gaming Laptop",
+    "limit": 10,
+    "threshold": 0.7
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "query": "Gaming Laptop",
+    "results": [
+      {
+        "product_id": "01234567890abcdef",
+        "similarity": 0.85,
+        "distance": 0.15,
+        "content": "Gaming Laptop ASUS ROG Strix..."
+      }
+    ],
+    "count": 5,
+    "limit": 10,
+    "threshold": 0.7
+  }
+}
+```
+
+## 6. Health Check
+
+```bash
+curl "https://your-shop.com/vector-search/health"
+```
+
+**Healthy Response:**
+```json
+{
+  "success": true,
+  "status": "healthy",
+  "data": {
+    "embedding_service": {
+      "status": "healthy",
+      "mode": "embedding_service",
+      "url": "http://localhost:8001"
+    },
+    "database": {
+      "status": "healthy", 
+      "embeddings_count": 1651,
+      "table_exists": true
+    },
+    "plugin_version": "1.0.0"
+  }
+}
+```
+
+## API-Authentifizierung
+
+Die API verwendet den `sw-access-key` Header:
+
+1. **Sales Channel Access Key finden:**
+   - Shopware Admin → Sales Channels
+   - Gewünschten Channel auswählen  
+   - "API access" Tab → Access Key kopieren
+
+2. **In API-Requests verwenden:**
+   ```bash
+   -H "sw-access-key: YOUR_SALES_CHANNEL_ACCESS_KEY"
+   ```
+
+## Embedding Service als systemd Service
+
+### Service-Datei erstellen
+```bash
+sudo nano /etc/systemd/system/embedding-service.service
+```
+
+```ini
+[Unit]
+Description=Embedding Service for Shopware Vector Search
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/path/to/embedding-service
+Environment=PATH=/path/to/embedding-env/bin
+ExecStart=/path/to/embedding-env/bin/python app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Service aktivieren
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable embedding-service
+sudo systemctl start embedding-service
+sudo systemctl status embedding-service
+```
+
+## Docker Setup
+
+### Dockerfile
+```dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY app.py .
+
+EXPOSE 8001
+
+CMD ["python", "app.py"]
+```
+
+### requirements.txt
+```
+flask==2.3.3
+sentence-transformers==2.2.2
+torch==2.0.1
+```
+
+### Docker Run
+```bash
+docker build -t embedding-service .
+docker run -d -p 8001:8001 --name embedding-service embedding-service
+```
+
+## Performance-Optimierung
+
+### Model-Wahl
+```python
+# Schnell, weniger genau (384 dim)
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Langsamer, genauer (768 dim)  
+model = SentenceTransformer('all-mpnet-base-v2')
+
+# Mehrsprachig (768 dim)
+model = SentenceTransformer('paraphrase-multilingual-mpnet-base-v2')
+```
+
+### GPU-Support
+```python
+# CUDA-Support aktivieren
+import torch
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model = SentenceTransformer('all-MiniLM-L6-v2', device=device)
+```
+
+### Batch-Processing
+```python
+# Größere Batches für bessere GPU-Auslastung
+@app.route('/embed/batch', methods=['POST'])
+def embed_batch():
+    # ... 
+    embeddings = model.encode(texts, batch_size=32)  # GPU batch size
+```
+
+## Troubleshooting
+
+### Service nicht erreichbar
+```bash
+# Service Status prüfen
+curl http://localhost:8001/health
+
+# Plugin Status prüfen
+bin/console shopware:vector-search:status
+
+# Firewall/Ports prüfen
+sudo netstat -tlnp | grep 8001
+```
+
+### Out of Memory
+```python
+# Kleinere Batch-Größe
+embeddings = model.encode(texts, batch_size=8)
+
+# Model auf CPU
+model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+```
+
+### Embedding-Dimensionen
+```bash
+# Plugin zeigt erkannte Dimensionen
+bin/console shopware:vector-search:debug
+
+# Service prüfen
+curl http://localhost:8001/health
+```
+
+### Performance Issues
+```bash
+# MySQL Version prüfen
+bin/console shopware:vector-search:debug
+
+# Kleinere Batch-Größe im Plugin
+bin/console shopware:vector-search:index --batch-size=20
+```
+
+## Monitoring
+
+### Service-Logs
+```bash
+# systemd Service
+sudo journalctl -u embedding-service -f
+
+# Docker
+docker logs -f embedding-service
+```
+
+### Performance-Monitoring
+```python
+import time
+import logging
+
+@app.route('/embed', methods=['POST'])
+def embed():
+    start_time = time.time()
+    # ... embedding logic ...
+    end_time = time.time()
+    
+    logging.info(f"Embedding took {end_time - start_time:.3f}s")
+    return jsonify(result)
+```
+
+### Health-Checks
+```bash
+# Regelmäßiger Plugin-Status
+bin/console shopware:vector-search:status --short
+
+# Service-Health via API
+curl "https://your-shop.com/vector-search/health"
+``` 

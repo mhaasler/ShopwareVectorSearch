@@ -158,19 +158,14 @@ bin/console shopware:vector-search:status
 # MySQL Debug (empfohlen vor erstem Einsatz)
 bin/console shopware:vector-search:debug
 
-# API Test
-curl -X POST http://your-shop.com/api/vector-search/index \
-  -H "Authorization: Bearer {admin-token}"
-
-# Vector Search Test
-curl -X POST http://your-shop.com/api/vector-search/search \
+# API Test (mit Sales Channel Access Key)
+curl -X POST "https://your-shop.com/vector-search/search" \
+  -H "sw-access-key: YOUR_SALES_CHANNEL_ACCESS_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"query": "rotes Kleid", "limit": 5}'
+  -d '{"query": "rotes Kleid", "limit": 5, "threshold": 0.7}'
 
-# Storefront API Test
-curl -X POST http://your-shop.com/store-api/vector-search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "smartphone", "limit": 3}'
+# Health Check Test
+curl "https://your-shop.com/vector-search/health"
 ```
 
 ## 🔧 Console Commands
@@ -229,48 +224,35 @@ bin/console shopware:vector-search:debug
 
 ## 📡 API Documentation
 
-### Admin API Endpoints
+### POST /vector-search/search
+Führt eine semantische Produktsuche durch.
 
-#### Produkte indexieren
-```http
-POST /api/vector-search/index
-Authorization: Bearer {admin-token}
+**Authentication:** `sw-access-key` Header erforderlich
 
-Response:
-{
-  "success": true,
-  "data": {
-    "indexed": 150,
-    "errors": 0,
-    "total_products": 150,
-    "message": "Successfully indexed 150 products"
-  }
-}
+**Request:**
+```bash
+curl -X POST "https://your-shop.com/vector-search/search" \
+  -H "sw-access-key: YOUR_SALES_CHANNEL_ACCESS_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Gaming Laptop",
+    "limit": 10,
+    "threshold": 0.7
+  }'
 ```
 
-#### Vector Search
-```http
-POST /api/vector-search/search
-Content-Type: application/json
-Authorization: Bearer {admin-token}
-
-{
-  "query": "rotes Kleid",
-  "limit": 10,
-  "threshold": 0.7
-}
-
-Response:
+**Response:**
+```json
 {
   "success": true,
   "data": {
-    "query": "rotes Kleid",
+    "query": "Gaming Laptop",
     "results": [
       {
-        "product_id": "...",
+        "product_id": "01234567890abcdef",
         "similarity": 0.85,
         "distance": 0.15,
-        "content": "Rotes Abendkleid..."
+        "content": "Gaming Laptop ASUS ROG Strix..."
       }
     ],
     "count": 5,
@@ -280,71 +262,81 @@ Response:
 }
 ```
 
-#### Status prüfen
-```http
-GET /api/vector-search/status
-Authorization: Bearer {admin-token}
+**Status Codes:**
+- `200`: Erfolgreiche Suche
+- `400`: Ungültige Anfrage (fehlende query)
+- `401`: Ungültiger oder fehlender sw-access-key
+- `500`: Server-Fehler
 
-Response:
+### GET /vector-search/health
+Prüft den Systemstatus (öffentlich zugänglich).
+
+**Request:**
+```bash
+curl "https://your-shop.com/vector-search/health"
+```
+
+**Response:**
+```json
 {
   "success": true,
+  "status": "healthy",
   "data": {
     "embedding_service": {
       "status": "healthy",
-      "url": "http://localhost:8001",
-      "model": "text-embedding-ada-002",
-      "dimensions": 1536,
-      "ready": true
+      "mode": "openai_direct",
+      "configured": true
     },
     "database": {
-      "status": "available",
-      "total_embeddings": 150,
-      "last_indexed": "2024-01-15T10:30:00Z"
+      "status": "healthy",
+      "embeddings_count": 1651,
+      "table_exists": true
     },
     "plugin_version": "1.0.0"
   }
 }
 ```
 
-### Storefront API Endpoints
+**Status Codes:**
+- `200`: System ist gesund
+- `503`: System hat Probleme oder ist nicht verfügbar
 
-#### Public Vector Search
-```http
-POST /store-api/vector-search
-Content-Type: application/json
-sw-access-key: {storefront-access-key}
+### API-Authentifizierung
 
-{
-  "query": "gaming laptop",
-  "limit": 5
-}
+Die API verwendet den `sw-access-key` Header für die Authentifizierung:
 
-Response:
-{
-  "success": true,
-  "data": {
-    "query": "gaming laptop",
-    "results": [
-      {
-        "product_id": "...",
-        "similarity": 0.92,
-        "content": "Gaming Laptop with RTX..."
-      }
-    ],
-    "count": 3
-  }
-}
-```
+1. **Sales Channel Access Key finden:**
+   - Shopware Admin → Sales Channels
+   - Gewünschten Channel auswählen
+   - "API access" Tab → Access Key kopieren
 
-## 🔧 Console Commands
+2. **In API-Requests verwenden:**
+   ```bash
+   -H "sw-access-key: SWSCVJY3RJFENTUZZDMZNWFWMA"
+   ```
 
-### Vector Search Indexierung
+## Management über Console Commands
+
+Die Verwaltung des Plugins erfolgt primär über Console Commands:
+
 ```bash
 # Alle Produkte indexieren
 bin/console shopware:vector-search:index
 
-# Mit zusätzlichen Optionen
-bin/console shopware:vector-search:index --force-reindex --batch-size=50
+# Force reindex mit Batch-Größe
+bin/console shopware:vector-search:index --force --batch-size=50
+
+# Status prüfen
+bin/console shopware:vector-search:status
+
+# Suche testen
+bin/console shopware:vector-search:search "Gaming Laptop" --detailed
+
+# Debug/MySQL Version prüfen
+bin/console shopware:vector-search:debug
+
+# Alle Daten löschen
+bin/console shopware:vector-search:clear --force
 ```
 
 ### Status prüfen
