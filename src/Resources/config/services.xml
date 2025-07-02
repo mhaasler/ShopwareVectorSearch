@@ -17,17 +17,17 @@
             <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
         </service>
 
-        <!-- Vector Search Controller (API) -->
-        <service id="MHaasler\ShopwareVectorSearch\Controller\VectorSearchController" public="true">
-            <argument type="service" id="MHaasler\ShopwareVectorSearch\Service\VectorSearchService"/>
-            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
-        </service>
-
         <!-- Public Vector Search Controller (Storefront) -->
-        <service id="MHaasler\ShopwareVectorSearch\Controller\PublicVectorSearchController" public="true">
+        <service id="MHaasler\ShopwareVectorSearch\Controller\PublicVectorSearchController" 
+                 class="MHaasler\ShopwareVectorSearch\Controller\PublicVectorSearchController" 
+                 public="true">
             <argument type="service" id="MHaasler\ShopwareVectorSearch\Service\VectorSearchService"/>
             <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
             <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+            <tag name="controller.service_arguments"/>
         </service>
 
         <!-- Console Commands -->
